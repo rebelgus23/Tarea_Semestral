@@ -1,0 +1,5 @@
+oleadas: 5
+vida_Zombies: 3
+vida_Casa: 15
+frecuencia_Disparo_Plantas: 2
+frecuencia_Soles: 3

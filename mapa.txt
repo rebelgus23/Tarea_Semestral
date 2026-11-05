@@ -1,0 +1,7 @@
+3 4
+0 1 0 3
+1 1 0 3
+0 0 2 3
+
+La primera linea son las dimenciones del jardin
+Luego se describe al jardin, con 1 siendo plantas, 2 siendo nuez y 3 siendo zombies.

@@ -229,3 +229,11 @@ int colocar_planta(
 
     return 1;
 }
+
+// Funcion añadiada por Belén, hay que hacer la funcion con lo que exista en el repositorio.
+
+void actualizar_juego(&juego, time(NULL)){
+
+
+    return;
+}

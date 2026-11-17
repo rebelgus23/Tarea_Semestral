@@ -8,6 +8,11 @@
 #define COLUMNAS 16
 #define TAM_CASILLA 62
 
+#define NADA 0
+#define GIRASOL 1
+#define LANZAGUISANTES 2
+#define NUEZ 3
+
 //7x9 es la maatriz de juego para que calce con la imagen
 
 SDL_Texture *cargarTextura(SDL_Renderer *renderizador, char *archivo){
@@ -17,6 +22,34 @@ SDL_Texture *cargarTextura(SDL_Renderer *renderizador, char *archivo){
     }
     return textura;
 }
+
+SDL_FRect posicionSOL = {
+    40.0f,
+    10.0f,
+    60.0f,
+    60.0f,
+};
+
+SDL_FRect posicionGirasol = {
+    120.0f,
+    10.0f,
+    60.0f,
+    60.0f,
+};
+
+SDL_FRect posicionLanzaguisantes = {
+    200.0f,
+    10.0f,
+    60.0f,
+    60.0f,
+};
+
+SDL_FRect posicionNuez = {
+    280.0f,
+    10.0f,
+    60.0f,
+    60.0f,
+};
 
 int main(){
     int mapa[FILAS][COLUMNAS] ={
@@ -29,10 +62,15 @@ int main(){
         {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
         {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
         {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}};
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+    };
+    
+    int plantas[FILAS][COLUMNAS] = {0};
 
-    int filaJugador = 2;
-    int columnaJugador = 4;
+    int plantaArrastrada = NADA;
+    float mouseX = 0.f;
+    float mouseY = 0.f;
+
     bool jugando = true;
 
     SDL_Window *ventana = NULL;
@@ -49,12 +87,19 @@ int main(){
         SDL_Quit();
         return 1; 
     }
-    SDL_Texture *texturaFondo = cargarTextura(renderizador, "Mapa_aleatorio1.png");
-    SDL_Texture *texturaPared = cargarTextura(renderizador, "bloque.png");
-    SDL_Texture *texturaJugador = cargarTextura(renderizador, "planta.png");
-    
 
-    if(!texturaPared || !texturaJugador){
+    SDL_SetRenderDrawColor(renderizador, 156, 82, 7, 255);
+    SDL_Texture *texturaFondo = cargarTextura(renderizador, "mapa_predeterminado.png");
+    SDL_Texture *texturaPared = cargarTextura(renderizador, "bloque.png");
+    SDL_FRect rectangulo ={ 40.f, 0.f, 500.f, 80.f};
+    SDL_Texture *texturaSol = cargarTextura(renderizador, "sol.png");
+    SDL_Texture *texturaGirasol = cargarTextura(renderizador, "girasol.png");
+    SDL_Texture *texturaguisantes = cargarTextura(renderizador, "lanzaguizantes.png");
+    SDL_Texture *texturaNuez = cargarTextura(renderizador, "Nuez.png");
+    
+    SDL_Texture *texturasPlantas[4] ={NULL, texturaGirasol, texturaguisantes, texturaNuez};
+
+    if(!texturaPared || !texturaFondo || !texturaSol || !texturaGirasol || !texturaguisantes || !texturaNuez){
         SDL_DestroyRenderer(renderizador);
         SDL_DestroyWindow(ventana);
         SDL_Quit();
@@ -66,50 +111,49 @@ int main(){
         SDL_Event evento;
 
         while(SDL_PollEvent(&evento)){
-            if(evento.type == SDL_EVENT_QUIT)
+            if(evento.type == SDL_EVENT_QUIT){
                 jugando = false;
-            if(evento.type== SDL_EVENT_KEY_DOWN && !evento.key.repeat){
+            }
 
-                int siguienteFila = filaJugador;
-                int siguienteColumna  = columnaJugador;
+            else if(evento.type == SDL_EVENT_MOUSE_BUTTON_DOWN && evento.button.button == SDL_BUTTON_LEFT){
+                SDL_FPoint punto = {evento.button.x, evento.button.y};
+                if(SDL_PointInRectFloat (&punto, &posicionGirasol)){
+                    plantaArrastrada = GIRASOL;
+                }else if(SDL_PointInRectFloat(&punto, &posicionLanzaguisantes)){
+                    plantaArrastrada= LANZAGUISANTES;
+                }else if(SDL_PointInRectFloat(&punto, &posicionNuez)){
+                    plantaArrastrada = NUEZ;
+                }
+                mouseX = punto.x;
+                mouseY = punto.y;
+            }
 
-                switch (evento.key.scancode){
-                case SDL_SCANCODE_W:
-                case SDL_SCANCODE_UP:
-                    siguienteFila--;
-                    break; 
+            else if(evento.type == SDL_EVENT_MOUSE_MOTION){
+                mouseX = evento.motion.x;
+                mouseY = evento.motion.y;
+            }
 
-                case SDL_SCANCODE_S:
-                case SDL_SCANCODE_DOWN:
-                    siguienteFila++;
-                    break; 
+            else if(evento.type == SDL_EVENT_MOUSE_BUTTON_UP && evento.button.button == SDL_BUTTON_LEFT){
+                if(plantaArrastrada != NADA){
+                    float x = evento.button.x;
+                    float y = evento.button.y;
 
-                case SDL_SCANCODE_A:
-                case SDL_SCANCODE_LEFT:
-                    siguienteColumna--;
-                    break;
+                    if(x>= 0 && y>=0){
+                        int columna = (int)(x/TAM_CASILLA);
+                        int fila = (int)(y/TAM_CASILLA);
 
-                case SDL_SCANCODE_D:
-                case SDL_SCANCODE_RIGHT:
-                    siguienteColumna++;
-                    break;
-                        
-                case SDL_SCANCODE_ESCAPE:
-                    jugando = false;
-                    break;
-
-                default:
-                    break;
-                }  
-                if(siguienteFila>=0 && siguienteFila<FILAS && siguienteColumna>=0 && siguienteColumna<COLUMNAS && mapa[siguienteFila][siguienteColumna]==0){
-                    filaJugador = siguienteFila;
-                    columnaJugador = siguienteColumna;
+                        if(fila<FILAS && columna<COLUMNAS && mapa[fila][columna]==0 && plantas[fila][columna]==NADA){
+                            plantas[fila][columna] = plantaArrastrada;
+                        }
+                    }
+                    plantaArrastrada = NADA;
                 }
             }
         }
-    SDL_SetRenderDrawColor(renderizador, 0, 0, 0, 255);
+    
     SDL_RenderClear(renderizador);
 
+    //For para limitar mi mapa.
     for(int fila=0;fila<FILAS; fila++){
         for(int columna =0; columna<COLUMNAS; columna++){ 
             if(mapa[fila][columna]==1){
@@ -118,21 +162,41 @@ int main(){
             }
         }
     }
-    SDL_FRect rectangulojugador = {columnaJugador * TAM_CASILLA, filaJugador * TAM_CASILLA, TAM_CASILLA, TAM_CASILLA};
+
     SDL_RenderTexture(renderizador, texturaFondo, NULL,  NULL);
-    SDL_RenderTexture(renderizador, texturaJugador, NULL, &rectangulojugador);
 
+    for(int fila=0; fila<FILAS; fila++){
+        for(int columna=0; columna<COLUMNAS; columna++){
+            if(plantas[fila][columna]!=NADA){
+                SDL_FRect rectanguloplanta = {columna*TAM_CASILLA, fila*TAM_CASILLA, TAM_CASILLA, TAM_CASILLA};
+                SDL_RenderTexture(renderizador, texturasPlantas[plantas[fila][columna]], NULL, &rectanguloplanta);
+            }
+        }
+    }
+
+    SDL_RenderFillRect(renderizador, &rectangulo);
+    SDL_RenderTexture(renderizador, texturaSol, NULL, &posicionSOL);
+    SDL_RenderTexture(renderizador, texturaGirasol, NULL, &posicionGirasol);
+    SDL_RenderTexture(renderizador, texturaguisantes, NULL, &posicionLanzaguisantes);
+    SDL_RenderTexture(renderizador, texturaNuez, NULL, &posicionNuez);
+
+    if(plantaArrastrada!=NADA){
+        SDL_FRect rectanguloArrastrado = {mouseX - 30.f, mouseY - 30.f, 60.f, 60.f};
+        SDL_RenderTexture(renderizador, texturasPlantas[plantaArrastrada], NULL, &rectanguloArrastrado);
+    }
     SDL_RenderPresent(renderizador);
-    SDL_Delay(16);
-}
 
+    }
 
-SDL_DestroyTexture(texturaJugador);
-SDL_DestroyTexture(texturaPared);
-SDL_DestroyTexture(texturaFondo);
-SDL_DestroyRenderer(renderizador);
-SDL_DestroyWindow(ventana);
-SDL_Quit();
+    SDL_DestroyTexture(texturaPared);
+    SDL_DestroyTexture(texturaFondo);
+    SDL_DestroyTexture(texturaSol);
+    SDL_DestroyTexture(texturaGirasol);
+    SDL_DestroyTexture(texturaguisantes);
+    SDL_DestroyTexture(texturaNuez);
+    SDL_DestroyRenderer(renderizador);
+    SDL_DestroyWindow(ventana);
+    SDL_Quit();
 
-return 0;
+    return 0;
 }

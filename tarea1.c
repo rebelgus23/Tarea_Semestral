@@ -9,6 +9,7 @@ int vida_Casa;
 int frecuencia_Disparo_Plantas;
 int frecuencia_Soles;
 
+// Sirve para leer la configuracion que tiene que estar escrita en el archio "configuracion.txt"
 void leer_config() {
     FILE *archivo = fopen("configuracion.txt", "r");
     
@@ -25,6 +26,7 @@ void leer_config() {
     fclose(archivo);
 }
 
+// Sirve para Poder leer un mapa precreado en un txt y copiarlo en memoria dinamica, para poder usarlo alli.
 int** cargar_mapa(char* nombre, int* filas, int* columnas){
     FILE *archivo = fopen(nombre, "r");
 
@@ -55,6 +57,7 @@ int** cargar_mapa(char* nombre, int* filas, int* columnas){
     return mapa;
 }
 
+// Genera un mapa aleatorio de las dimenciones dadas.
 void generar_mapa_aleatorio(int* FILAS, int* COLUMNAS){
     // Me falta configurar la aparicion por tercios y diferenciar los girasoles.
     FILE *archivo = fopen("mapa_aleatorio.txt", "w");

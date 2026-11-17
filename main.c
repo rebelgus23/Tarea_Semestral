@@ -65,7 +65,7 @@ int main(){
             colocar_planta(&juego, eleccion, AuxFila, AuxColumna);
         }
 
-        actualizar_juego(EstadoJuego *juego, time_t tiempo_actual);
+        actualizar_juego(&juego, time(NULL));
     }
 
 

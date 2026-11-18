@@ -21,8 +21,15 @@
 #define COSTO_GIRASOL 50
 #define COSTO_LANZAGUISANTES 100
 #define COSTO_NUEZ 150
+
 #define VIDA_NUEZ 5
 #define SOLES_GENERADOS 25
+
+// Frecuencia de movimiento y ataque de los zombis
+#define FRECUENCIA_ZOMBIE_NORMAL 2
+#define FRECUENCIA_FLAG_ZOMBIE 1
+#define FRECUENCIA_ATAQUE_ZOMBIE 1
+#define DANO_ZOMBIE 1
 
 
 // Estructura que almacena el estado actual de la partida
@@ -72,6 +79,12 @@ void actualizar_lanzaguisantes(EstadoJuego *juego, time_t tiempo_actual);
 
 // Avanza los proyectiles y comprueba si impactan contra un zombie
 void mover_proyectiles(EstadoJuego *juego, time_t tiempo_actual);
+
+// Controla el movimiento y los ataques de los zombis
+void actualizar_zombies(EstadoJuego *juego, time_t tiempo_actual);
+
+// Comprueba si se cumplen las condiciones para terminar la partida
+void comprobar_fin_juego(EstadoJuego *juego);
 
 // Libera la memoria utilizada por el estado del juego
 void liberar_juego(EstadoJuego *juego);

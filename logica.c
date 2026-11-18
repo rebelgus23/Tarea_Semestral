@@ -1,5 +1,3 @@
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -87,13 +85,38 @@ void liberar_matriz_tiempo(time_t **matriz, int filas) {
 
 // Inicializa las matrices y los valores iniciales de la partida
 int inicializar_juego(EstadoJuego *juego, int **mapa, int filas, int columnas) {
-    if (juego == NULL || mapa == NULL || filas <= 0 || columnas <= 0) {
-        return 0;
+    if (juego == NULL || mapa == NULL || filas <= 0 || columnas <= 0 ||
+    oleadas <= 0 || vida_Zombies <= 0 || vida_Casa <= 0) {
+    return 0;
+}
+
+    // Se comprueba que los valores del mapa sean validos
+    for (int i = 0; i < filas; i++) {
+        if (mapa[i] == NULL) {
+            return 0;
+        }
+
+        for (int j = 0; j < columnas; j++) {
+            int tipo = mapa[i][j];
+
+            if (tipo < PASTO || tipo > FLAG_ZOMBIE) {
+                return 0;
+            }
+        }
     }
 
     juego->filas = filas;
     juego->columnas = columnas;
 
+    // Se inicializan los punteros
+    juego->tipo_entidad = NULL;
+    juego->clase_entidad = NULL;
+    juego->vida = NULL;
+    juego->proyectiles = NULL;
+    juego->ultimo_evento = NULL;
+    juego->ultimo_proyectil = NULL;
+
+    // Se reservan las matrices necesarias
     juego->tipo_entidad = crear_matriz(filas, columnas);
     juego->vida = crear_matriz(filas, columnas);
     juego->proyectiles = crear_matriz(filas, columnas);
@@ -111,10 +134,19 @@ int inicializar_juego(EstadoJuego *juego, int **mapa, int filas, int columnas) {
         liberar_matriz_tiempo(juego->ultimo_evento, filas);
         liberar_matriz_tiempo(juego->ultimo_proyectil, filas);
 
+        juego->tipo_entidad = NULL;
+        juego->vida = NULL;
+        juego->proyectiles = NULL;
+        juego->ultimo_evento = NULL;
+        juego->ultimo_proyectil = NULL;
+
         return 0;
     }
 
+    // El estado del juego toma el control del mapa recibido
     juego->clase_entidad = mapa;
+
+    time_t tiempo_inicio = time(NULL);
 
     // Clasifica cada casilla y asigna la vida correspondiente
     for (int i = 0; i < filas; i++) {
@@ -138,17 +170,10 @@ int inicializar_juego(EstadoJuego *juego, int **mapa, int filas, int columnas) {
                 juego->tipo_entidad[i][j] = ZOMBIE_ENTIDAD;
                 juego->vida[i][j] = vida_Zombies;
             }
-            else {
-                juego->clase_entidad = NULL;
 
-                liberar_matriz(juego->tipo_entidad, filas);
-                liberar_matriz(juego->vida, filas);
-                liberar_matriz(juego->proyectiles, filas);
-                liberar_matriz_tiempo(juego->ultimo_evento, filas);
-                liberar_matriz_tiempo(juego->ultimo_proyectil, filas);
-
-                return 0;
-            }
+            // Se inicializan los tiempos de cada casilla
+            juego->ultimo_evento[i][j] = tiempo_inicio;
+            juego->ultimo_proyectil[i][j] = tiempo_inicio;
         }
     }
 
@@ -162,7 +187,16 @@ int inicializar_juego(EstadoJuego *juego, int **mapa, int filas, int columnas) {
     juego->juego_activo = 1;
     juego->victoria = 0;
 
-    juego->ultimo_solar = time(NULL);
+    juego->ultimo_solar = tiempo_inicio;
+
+    // Se inicializan los valores de las oleadas
+    juego->estado_oleada = PREPARACION;
+    juego->zombies_por_generar = 0;
+    juego->zombies_generados = 0;
+
+    juego->inicio_partida = tiempo_inicio;
+    juego->ultimo_spawn = tiempo_inicio;
+    juego->inicio_descanso = tiempo_inicio;
 
     return 1;
 }
@@ -170,10 +204,11 @@ int inicializar_juego(EstadoJuego *juego, int **mapa, int filas, int columnas) {
 
 // Comprueba si se puede colocar una planta y descuenta su costo
 int colocar_planta(EstadoJuego *juego, int tipo, int fila, int columna) {
-    if (juego == NULL || fila < 0 || fila >= juego->filas ||
-        columna < 0 || columna >= juego->columnas) {
-        return 0;
-    }
+    if (juego == NULL || juego->juego_activo == 0 ||
+    fila < 0 || fila >= juego->filas ||
+    columna < 0 || columna >= juego->columnas) {
+    return 0;
+}
 
     if (juego->tipo_entidad[fila][columna] != VACIO) {
         return 0;
@@ -288,6 +323,7 @@ void actualizar_lanzaguisantes(EstadoJuego *juego, time_t tiempo_actual) {
                 if (juego->vida[i][siguiente] <= 0) {
                     juego->tipo_entidad[i][siguiente] = VACIO;
                     juego->clase_entidad[i][siguiente] = PASTO;
+                    juego->vida[i][siguiente] = 0;
                 }
 
                 juego->ultimo_evento[i][j] = tiempo_actual;
@@ -334,6 +370,7 @@ void mover_proyectiles(EstadoJuego *juego, time_t tiempo_actual) {
                 if (juego->vida[i][siguiente] <= 0) {
                     juego->tipo_entidad[i][siguiente] = VACIO;
                     juego->clase_entidad[i][siguiente] = PASTO;
+                    juego->vida[i][siguiente] = 0;
                 }
             }
             else if (juego->tipo_entidad[i][siguiente] == VACIO &&
@@ -347,6 +384,244 @@ void mover_proyectiles(EstadoJuego *juego, time_t tiempo_actual) {
 }
 
 
+// Controla el movimiento y los ataques de los zombies
+void actualizar_zombies(EstadoJuego *juego, time_t tiempo_actual) {
+
+    // reccorren de izquierda a derecha
+    for (int i = 0; i < juego->filas; i++) {
+        for (int j = 0; j < juego->columnas; j++) {
+
+            if (juego->tipo_entidad[i][j] != ZOMBIE_ENTIDAD) {
+                continue;
+            }
+
+            int frecuencia;
+
+            // Se determina la velocidad segun el tipo de zombie
+            if (juego->clase_entidad[i][j] == ZOMBIE_NORMAL) {
+                frecuencia = FRECUENCIA_ZOMBIE_NORMAL;
+            }
+            else {
+                frecuencia = FRECUENCIA_FLAG_ZOMBIE;
+            }
+
+            // Se comprueba si debe atacar una planta o la casa
+            if (j == 0) {
+                frecuencia = FRECUENCIA_ATAQUE_ZOMBIE;
+            }
+            else if (juego->tipo_entidad[i][j - 1] == PLANTA) {
+                frecuencia = FRECUENCIA_ATAQUE_ZOMBIE;
+            }
+
+            // Se comprueba si ya paso el tiempo necesario
+            if (tiempo_actual - juego->ultimo_evento[i][j] < frecuencia) {
+                continue;
+            }
+
+            // Si el zombie llega al extremo izquierdo, ataca  ala casa
+            if (j == 0) {
+
+                juego->vida_casa -= DANO_ZOMBIE;
+                juego->ultimo_evento[i][j] = tiempo_actual;
+
+            }
+
+            // Si encuentra una planta, la ataca
+            else if (juego->tipo_entidad[i][j - 1] == PLANTA) {
+
+                juego->vida[i][j - 1] -= DANO_ZOMBIE;
+
+                // Se elimina la planta si pierde toda su vida
+                if (juego->vida[i][j - 1] <= 0) {
+
+                    juego->tipo_entidad[i][j - 1] = VACIO;
+                    juego->clase_entidad[i][j - 1] = PASTO;
+                    juego->vida[i][j - 1] = 0;
+                }
+
+                juego->ultimo_evento[i][j] = tiempo_actual;
+
+            }
+
+            // Si encuentra una casilla vacia, avanza
+            else if (juego->tipo_entidad[i][j - 1] == VACIO) {
+
+                juego->tipo_entidad[i][j - 1] = ZOMBIE_ENTIDAD;
+                juego->clase_entidad[i][j - 1] = juego->clase_entidad[i][j];
+                juego->vida[i][j - 1] = juego->vida[i][j];
+
+                juego->ultimo_evento[i][j - 1] = tiempo_actual;
+
+                // Se libera la casilla anterior
+                juego->tipo_entidad[i][j] = VACIO;
+                juego->clase_entidad[i][j] = PASTO;
+                juego->vida[i][j] = 0;
+            }
+        }
+    }
+}
+
+
+// Comprueba si quedan zombies en el jardin
+// Comprueba si quedan zombies en el jardin
+int quedan_zombies(EstadoJuego *juego) {
+
+    if (juego == NULL) {
+        return 0;
+    }
+
+    for (int i = 0; i < juego->filas; i++) {
+        for (int j = 0; j < juego->columnas; j++) {
+
+            if (juego->tipo_entidad[i][j] == ZOMBIE_ENTIDAD) {
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+
+// Genera un zombie en el extremo derecho del mapa
+int generar_zombie(EstadoJuego *juego, time_t tiempo_actual) {
+
+    if (juego == NULL || juego->filas <= 0 || juego->columnas <= 0) {
+    return 0;
+}
+
+    int columna = juego->columnas - 1;
+    int fila_inicial = rand() % juego->filas;
+
+    // Se buscan casillas disponibles en la ultima columna
+    for (int i = 0; i < juego->filas; i++) {
+
+        int fila = (fila_inicial + i) % juego->filas;
+
+        if (juego->tipo_entidad[fila][columna] == VACIO) {
+
+            int tipo;
+
+            // Se genera un flag zombie cada tres apariciones
+            if (juego->zombies_generados % 3 == 2) {
+                tipo = FLAG_ZOMBIE;
+            }
+            else {
+                tipo = ZOMBIE_NORMAL;
+            }
+
+            juego->tipo_entidad[fila][columna] = ZOMBIE_ENTIDAD;
+            juego->clase_entidad[fila][columna] = tipo;
+            juego->vida[fila][columna] = vida_Zombies;
+
+            juego->ultimo_evento[fila][columna] = tiempo_actual;
+
+            juego->zombies_generados++;
+
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+
+// Controla la aparicion y el avance de las oleadas
+void actualizar_oleadas(EstadoJuego *juego, time_t tiempo_actual) {
+
+    if (juego == NULL || !juego->juego_activo) {
+        return;
+    }
+
+    // Se controla el tiempo de preparacion inicial
+    if (juego->estado_oleada == PREPARACION) {
+
+        if (tiempo_actual - juego->inicio_partida >= TIEMPO_PREPARACION) {
+
+            juego->oleada_actual = 1;
+            juego->zombies_por_generar = ZOMBIES_INICIALES;
+            juego->zombies_generados = 0;
+
+            juego->ultimo_spawn = tiempo_actual;
+            juego->estado_oleada = OLEADA;
+        }
+
+        return;
+    }
+
+    // Se controla la aparicion de zombies durante una oleada
+    if (juego->estado_oleada == OLEADA) {
+
+        if (juego->zombies_generados < juego->zombies_por_generar) {
+
+            if (tiempo_actual - juego->ultimo_spawn >= INTERVALO_APARICION) {
+
+                if (generar_zombie(juego, tiempo_actual)) {
+                    juego->ultimo_spawn = tiempo_actual;
+                }
+            }
+        }
+
+        // Se comprueba si aparecieron todos los zombies y ya no quedan en el jardin
+        if (juego->zombies_generados == juego->zombies_por_generar &&
+            !quedan_zombies(juego)) {
+
+            if (juego->oleada_actual >= oleadas) {
+
+                juego->estado_oleada = PARTIDA_TERMINADA;
+                juego->juego_activo = 0;
+                juego->victoria = 1;
+
+            }
+            else {
+
+                juego->estado_oleada = DESCANSO;
+                juego->inicio_descanso = tiempo_actual;
+            }
+        }
+
+        return;
+    }
+
+    // Se controla el descanso entre oleadas
+    if (juego->estado_oleada == DESCANSO) {
+
+        if (tiempo_actual - juego->inicio_descanso >= TIEMPO_DESCANSO) {
+
+            juego->oleada_actual++;
+
+            // Cada oleada aumenta la cantidad de zombies
+            juego->zombies_por_generar += ZOMBIES_ADICIONALES;
+            juego->zombies_generados = 0;
+
+            juego->ultimo_spawn = tiempo_actual;
+            juego->estado_oleada = OLEADA;
+        }
+
+        return;
+    }
+}
+
+
+// Comprueba si se cumplen las condiciones para terminar la partida
+void comprobar_fin_juego(EstadoJuego *juego) {
+
+    if (juego == NULL) {
+        return;
+    }
+
+    // Se comprueba si la casa fue destruida
+    if (juego->vida_casa <= 0) {
+
+        juego->vida_casa = 0;
+        juego->juego_activo = 0;
+        juego->victoria = 0;
+        juego->estado_oleada = PARTIDA_TERMINADA;
+    }
+}
+
+
+// Ejecuta las actualizaciones correspondientes al estado del juego
 // Ejecuta las actualizaciones correspondientes al estado del juego
 void actualizar_juego(EstadoJuego *juego, time_t tiempo_actual) {
     if (juego == NULL || juego->juego_activo == 0) {
@@ -354,11 +629,24 @@ void actualizar_juego(EstadoJuego *juego, time_t tiempo_actual) {
     }
 
     generar_soles(juego, tiempo_actual);
-    actualizar_girasoles(juego, tiempo_actual);
-    actualizar_lanzaguisantes(juego, tiempo_actual);
-    mover_proyectiles(juego, tiempo_actual);
-}
 
+    actualizar_girasoles(juego, tiempo_actual);
+
+    actualizar_oleadas(juego, tiempo_actual);
+
+    // Se comprueba si las oleadas terminaron la partida
+    if (juego->juego_activo == 0) {
+        return;
+    }
+
+    actualizar_lanzaguisantes(juego, tiempo_actual);
+
+    mover_proyectiles(juego, tiempo_actual);
+
+    actualizar_zombies(juego, tiempo_actual);
+
+    comprobar_fin_juego(juego);
+}
 
 // Libera la memoria utilizada por el estado del juego
 void liberar_juego(EstadoJuego *juego) {

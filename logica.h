@@ -25,12 +25,24 @@
 #define VIDA_NUEZ 5
 #define SOLES_GENERADOS 25
 
-// Frecuencia de movimiento y ataque de los zombis
+// Frecuencia de movimiento y ataque de los zombies
 #define FRECUENCIA_ZOMBIE_NORMAL 2
 #define FRECUENCIA_FLAG_ZOMBIE 1
 #define FRECUENCIA_ATAQUE_ZOMBIE 1
 #define DANO_ZOMBIE 1
 
+// Configuracion de las oleadas
+#define TIEMPO_PREPARACION 10
+#define TIEMPO_DESCANSO 5
+#define INTERVALO_APARICION 2
+#define ZOMBIES_INICIALES 2
+#define ZOMBIES_ADICIONALES 1
+
+// Estados de las oleadas
+#define PREPARACION 0
+#define OLEADA 1
+#define DESCANSO 2
+#define PARTIDA_TERMINADA 3
 
 // Estructura que almacena el estado actual de la partida
 typedef struct {
@@ -56,6 +68,16 @@ typedef struct {
     int victoria;
 
     time_t ultimo_solar;
+
+    // Variables para controlar las oleadas
+    int estado_oleada;
+    int zombies_por_generar;
+    int zombies_generados;
+
+    time_t inicio_partida;
+    time_t ultimo_spawn;
+    time_t inicio_descanso;
+
 } EstadoJuego;
 
 
@@ -80,8 +102,17 @@ void actualizar_lanzaguisantes(EstadoJuego *juego, time_t tiempo_actual);
 // Avanza los proyectiles y comprueba si impactan contra un zombie
 void mover_proyectiles(EstadoJuego *juego, time_t tiempo_actual);
 
-// Controla el movimiento y los ataques de los zombis
+// Controla el movimiento y los ataques de los zombies
 void actualizar_zombies(EstadoJuego *juego, time_t tiempo_actual);
+
+// Controla la aparicion y el avance de las oleadas
+void actualizar_oleadas(EstadoJuego *juego, time_t tiempo_actual);
+
+// Genera un zombie en el extremo derecho del mapa
+int generar_zombie(EstadoJuego *juego, time_t tiempo_actual);
+
+// Comprueba si quedan zombies en el jardin
+int quedan_zombies(EstadoJuego *juego);
 
 // Comprueba si se cumplen las condiciones para terminar la partida
 void comprobar_fin_juego(EstadoJuego *juego);
@@ -90,3 +121,4 @@ void comprobar_fin_juego(EstadoJuego *juego);
 void liberar_juego(EstadoJuego *juego);
 
 #endif
+

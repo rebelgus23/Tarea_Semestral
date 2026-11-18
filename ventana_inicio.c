@@ -16,7 +16,7 @@ SDL_Texture *cargarTextura(SDL_Renderer *renderizador, char *archivo){
 }
 
 int estado_juego = 0;
-int main(){
+int mostrar_menu(){
     bool jugando = true;
 
     SDL_Window *ventana = NULL;

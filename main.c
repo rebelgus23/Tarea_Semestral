@@ -120,7 +120,7 @@ int main(){
         // y el otro para sacar el salto de linea hecho para pasar al siguiente turno.
     }
 
-
+    
 
 
     // Liberar la memoria ocupada por el mapa

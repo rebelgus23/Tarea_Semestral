@@ -1,270 +1,214 @@
-/*gcc ventana_juego.c -o vjuego -lSDL3 -lSDL3_image*/
+/* 
+Compilar en WSL:
+gcc ventana_juego.c tarea1.c logica.c -o juego_grafico $(pkg-config --cflags --libs sdl3 sdl3-image)
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <time.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
-#include <stdbool.h>
+#include "logica.h"
+#include "tarea1.h"
 
-/* Tamano de la ventana del menu de inicio */
-#define ANCHO_MENU 960
-#define ALTO_MENU 780
-
-/* Tamano del mapa de juego */
-#define FILAS 10
-#define COLUMNAS 16
-#define TAM_CASILLA 62
-
-/* Tipos de planta */
-#define NADA 0
-#define GIRASOL 1
-#define LANZAGUISANTES 2
-#define NUEZ 3
-
-/* Estados del programa */
-#define MENU 0
-#define MAPA_PREDETERMINADO 1
-#define MAPA_ALEATORIO 2
+// Hacemos la cuadrícula mucho más grande
+#define TAM_CASILLA 90
+#define ALTO_BARRA 100
 
 SDL_Texture *cargarTextura(SDL_Renderer *renderizador, char *archivo){
     SDL_Texture *textura = IMG_LoadTexture(renderizador, archivo);
     if(textura == NULL){
-        SDL_Log("Error al cargar %s: %s", archivo, SDL_GetError());
+        SDL_Log("Advertencia: No se encontró %s", archivo);
     }
     return textura;
 }
 
-SDL_FRect posicionSOL = {
-    40.0f,
-    10.0f,
-    60.0f,
-    60.0f,
-};
-
-SDL_FRect posicionGirasol = {
-    120.0f,
-    10.0f,
-    60.0f,
-    60.0f,
-};
-
-SDL_FRect posicionLanzaguisantes = {
-    200.0f,
-    10.0f,
-    60.0f,
-    60.0f,
-};
-
-SDL_FRect posicionNuez = {
-    280.0f,
-    10.0f,
-    60.0f,
-    60.0f,
-};
-
 int main(){
-    int mapa[FILAS][COLUMNAS] ={
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
-        {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
-        {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
-        {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
-        {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
-        {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
-        {1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1},
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
-    };
+    srand(time(NULL));
+    int filas, columnas;
+    
+    // 1. Cargar la lógica del juego
+    int **mapa = cargar_mapa("mapa.txt", &filas, &columnas);
+    if (mapa == NULL) {
+        printf("Error al cargar mapa.txt\n");
+        return 1;
+    }
+    leer_config();
+    
+    EstadoJuego juego;
+    inicializar_juego(&juego, mapa, filas, columnas);
 
-    int plantas[FILAS][COLUMNAS] = {0};
-
-    /* Estado general del programa: menu o alguno de los dos mapas */
-    int estado_juego = MENU;
-
-    /* Estado del arrastre */
-    int plantaArrastrada = NADA;
-    float mouseX = 0.f;
-    float mouseY = 0.f;
-
-    bool jugando = true;
-
-    SDL_Window *ventana = NULL;
-    SDL_Renderer *renderizador = NULL;
-
-    /* Botones del menu */
-    SDL_FRect botonPredeterminado = {320.f, 200.f, 300.f, 100.f};
-    SDL_FRect botonAleatorio = {320.f, 400.f, 300.f, 100.f};
-
-    /* Barra superior donde estan las plantas */
-    SDL_FRect barraPlantas = {40.f, 0.f, 500.f, 80.f};
-
+    // 2. Configurar SDL
     if(!SDL_Init(SDL_INIT_VIDEO)){
         SDL_Log("Error al iniciar SDL: %s", SDL_GetError());
         return 1;
     }
 
-    /* La ventana parte con el tamano del menu */
-    if(!SDL_CreateWindowAndRenderer("Juego", ANCHO_MENU, ALTO_MENU, 0, &ventana, &renderizador)){
-        SDL_Log("Error al iniciar SDL: %s", SDL_GetError());
+    int ancho_base = columnas * TAM_CASILLA;
+    int alto_base = (filas * TAM_CASILLA) + ALTO_BARRA;
+
+    SDL_Window *ventana = NULL;
+    SDL_Renderer *renderizador = NULL;
+
+    if(!SDL_CreateWindowAndRenderer("Plants vs Zombies - UdeC", ancho_base, alto_base, SDL_WINDOW_RESIZABLE, &ventana, &renderizador)){
+        SDL_Log("Error al crear ventana: %s", SDL_GetError());
         SDL_Quit();
         return 1;
     }
 
-    SDL_SetRenderDrawColor(renderizador, 156, 82, 7, 255);
+    SDL_SetRenderLogicalPresentation(renderizador, ancho_base, alto_base, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
-    /* Texturas del menu */
-    SDL_Texture *texturaInicio = cargarTextura(renderizador, "inicio.png");
-    SDL_Texture *texturaMPP = cargarTextura(renderizador, "boton_mpp.png");
-    SDL_Texture *texturaMPA = cargarTextura(renderizador, "boton_mpa.png");
+    // 3. Cargar texturas (Si no tienes canela.jpg, usará sol.jpg)
+    SDL_Texture *texturaFondo = cargarTextura(renderizador, "mapa_predeterminado.png"); 
+    SDL_Texture *texturaSol = cargarTextura(renderizador, "sol.jpg");         
+    SDL_Texture *texturaGirasol = cargarTextura(renderizador, "girasol.jpg"); 
+    SDL_Texture *texturaLanza = cargarTextura(renderizador, "planta.png");    
+    SDL_Texture *texturaNuez = cargarTextura(renderizador, "canela.jpg");     
 
-    /* Texturas del juego */
-    SDL_Texture *texturaMapaPredet = cargarTextura(renderizador, "mapa_predeterminado.png");
-    SDL_Texture *texturaMapaAleatorio = cargarTextura(renderizador, "Mapa_aleatorio1.png");
-    SDL_Texture *texturaPared = cargarTextura(renderizador, "bloque.png");
-    SDL_Texture *texturaSol = cargarTextura(renderizador, "sol.png");
-    SDL_Texture *texturaGirasol = cargarTextura(renderizador, "girasol.png");
-    SDL_Texture *texturaguisantes = cargarTextura(renderizador, "lanzaguizantes.png");
-    SDL_Texture *texturaNuez = cargarTextura(renderizador, "Nuez.png");
+    // Fallbacks
+    if (texturaGirasol == NULL) texturaGirasol = texturaLanza;
+    if (texturaNuez == NULL) texturaNuez = texturaSol; 
+    
+    // Ajuste de la barra superior para el nuevo tamaño
+    SDL_FRect barraFondo = {0.f, 0.f, (float)ancho_base, (float)ALTO_BARRA};
+    
+    // Botones más grandes
+    SDL_FRect btnGirasol = {10.f, 10.f, 80.f, 80.f};
+    SDL_FRect btnLanza = {100.f, 10.f, 80.f, 80.f};
+    SDL_FRect btnNuez = {190.f, 10.f, 80.f, 80.f};
+    SDL_FRect rectSolUI = {290.f, 10.f, 80.f, 80.f}; 
 
-    SDL_Texture *texturasPlantas[4] = {NULL, texturaGirasol, texturaguisantes, texturaNuez};
+    int plantaSeleccionada = 0; 
+    bool jugando = true;
 
-    if(!texturaInicio || !texturaMPP || !texturaMPA ||
-       !texturaMapaPredet || !texturaMapaAleatorio || !texturaPared ||
-       !texturaSol || !texturaGirasol || !texturaguisantes || !texturaNuez){
-        SDL_DestroyRenderer(renderizador);
-        SDL_DestroyWindow(ventana);
-        SDL_Quit();
-        return 1;
-    }
-
+    // 4. Game Loop
     while(jugando){
-
         SDL_Event evento;
-
         while(SDL_PollEvent(&evento)){
             if(evento.type == SDL_EVENT_QUIT){
                 jugando = false;
             }
 
-            /* ---------- EVENTOS DEL MENU ---------- */
-            else if(estado_juego == MENU){
-                if(evento.type == SDL_EVENT_MOUSE_BUTTON_DOWN){
-                    SDL_FPoint punto_mouse = {evento.button.x, evento.button.y};
+            float mouseX, mouseY;
+            SDL_RenderCoordinatesFromWindow(renderizador, evento.button.x, evento.button.y, &mouseX, &mouseY);
+            SDL_FPoint pt = {mouseX, mouseY};
 
-                    if(SDL_PointInRectFloat(&punto_mouse, &botonPredeterminado)){
-                        estado_juego = MAPA_PREDETERMINADO;
-                    }
-                    else if(SDL_PointInRectFloat(&punto_mouse, &botonAleatorio)){
-                        estado_juego = MAPA_ALEATORIO;
-                    }
-
-                    /* Si se eligio un mapa, la ventana pasa al tamano del juego */
-                    if(estado_juego != MENU){
-                        SDL_SetWindowSize(ventana, COLUMNAS*TAM_CASILLA, FILAS*TAM_CASILLA);
-                        SDL_SetWindowPosition(ventana, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-                    }
-                }
+            // Seleccionar planta
+            if(evento.type == SDL_EVENT_MOUSE_BUTTON_DOWN && evento.button.button == SDL_BUTTON_LEFT){
+                if(SDL_PointInRectFloat(&pt, &btnGirasol)) plantaSeleccionada = GIRASOL;
+                else if(SDL_PointInRectFloat(&pt, &btnLanza)) plantaSeleccionada = LANZAGUISANTES;
+                else if(SDL_PointInRectFloat(&pt, &btnNuez)) plantaSeleccionada = NUEZ;
             }
 
-            /* ---------- EVENTOS DEL JUEGO (arrastrar plantas) ---------- */
-            else{
-                if(evento.type == SDL_EVENT_MOUSE_BUTTON_DOWN && evento.button.button == SDL_BUTTON_LEFT){
-                    SDL_FPoint punto = {evento.button.x, evento.button.y};
-                    if(SDL_PointInRectFloat(&punto, &posicionGirasol)){
-                        plantaArrastrada = GIRASOL;
-                    }else if(SDL_PointInRectFloat(&punto, &posicionLanzaguisantes)){
-                        plantaArrastrada = LANZAGUISANTES;
-                    }else if(SDL_PointInRectFloat(&punto, &posicionNuez)){
-                        plantaArrastrada = NUEZ;
-                    }
-                    mouseX = punto.x;
-                    mouseY = punto.y;
-                }
+            // Plantar
+            if(evento.type == SDL_EVENT_MOUSE_BUTTON_UP && evento.button.button == SDL_BUTTON_LEFT){
+                if(plantaSeleccionada != 0 && mouseY > ALTO_BARRA){
+                    int columna = (int)(mouseX / TAM_CASILLA);
+                    int fila = (int)((mouseY - ALTO_BARRA) / TAM_CASILLA);
 
-                else if(evento.type == SDL_EVENT_MOUSE_MOTION){
-                    mouseX = evento.motion.x;
-                    mouseY = evento.motion.y;
-                }
-
-                else if(evento.type == SDL_EVENT_MOUSE_BUTTON_UP && evento.button.button == SDL_BUTTON_LEFT){
-                    if(plantaArrastrada != NADA){
-                        float x = evento.button.x;
-                        float y = evento.button.y;
-
-                        if(x >= 0 && y >= 0){
-                            int columna = (int)(x/TAM_CASILLA);
-                            int fila = (int)(y/TAM_CASILLA);
-
-                            if(fila<FILAS && columna<COLUMNAS && mapa[fila][columna]==0 && plantas[fila][columna]==NADA){
-                                plantas[fila][columna] = plantaArrastrada;
-                            }
+                    if(fila >= 0 && fila < filas && columna >= 0 && columna < columnas){
+                        int exito = colocar_planta(&juego, plantaSeleccionada, fila, columna);
+                        if(exito) {
+                            printf("Planta colocada en %d, %d\n", fila, columna);
+                        } else {
+                            printf("No se pudo plantar (falta plata o casilla ocupada).\n");
                         }
-                        plantaArrastrada = NADA;
                     }
                 }
             }
         }
 
+        // 5. Actualizar lógica
+        actualizar_juego(&juego, time(NULL));
+
+        // 6. Dibujar
+        SDL_SetRenderDrawColor(renderizador, 30, 30, 30, 255);
         SDL_RenderClear(renderizador);
 
-        /* ---------- DIBUJAR EL MENU ---------- */
-        if(estado_juego == MENU){
-            SDL_RenderTexture(renderizador, texturaInicio, NULL, NULL);
-            SDL_RenderTexture(renderizador, texturaMPP, NULL, &botonPredeterminado);
-            SDL_RenderTexture(renderizador, texturaMPA, NULL, &botonAleatorio);
+        // Fondo
+        if(texturaFondo != NULL){
+            SDL_FRect rectFondo = {0.f, (float)ALTO_BARRA, (float)ancho_base, (float)(filas * TAM_CASILLA)};
+            SDL_RenderTexture(renderizador, texturaFondo, NULL, &rectFondo);
         }
 
-        /* ---------- DIBUJAR EL JUEGO ---------- */
-        else{
-            //For para limitar mi mapa.
-            for(int fila=0; fila<FILAS; fila++){
-                for(int columna=0; columna<COLUMNAS; columna++){
-                    if(mapa[fila][columna]==1){
-                        SDL_FRect rectanguloPared = {columna * TAM_CASILLA, fila * TAM_CASILLA, TAM_CASILLA, TAM_CASILLA};
-                        SDL_RenderTexture(renderizador, texturaPared, NULL, &rectanguloPared);
+        // Entidades
+        for(int i = 0; i < juego.filas; i++){
+            for(int j = 0; j < juego.columnas; j++){
+                SDL_FRect rect = {j * TAM_CASILLA, (i * TAM_CASILLA) + ALTO_BARRA, TAM_CASILLA, TAM_CASILLA};
+                int clase = juego.clase_entidad[i][j];
+
+                // Dibujar Plantas
+                if(clase == GIRASOL){
+                    if(texturaGirasol) SDL_RenderTexture(renderizador, texturaGirasol, NULL, &rect);
+                }
+                else if(clase == LANZAGUISANTES){
+                    if(texturaLanza) SDL_RenderTexture(renderizador, texturaLanza, NULL, &rect);
+                }
+                else if(clase == NUEZ){
+                    if(texturaNuez) {
+                        SDL_RenderTexture(renderizador, texturaNuez, NULL, &rect);
+                        // Le ponemos un borde al perrito para que se note que es la Nuez defensiva
+                        SDL_SetRenderDrawColor(renderizador, 139, 69, 19, 255); // Café oscuro
+                        SDL_RenderRect(renderizador, &rect);
                     }
                 }
-            }
-
-            /* El fondo depende del mapa elegido en el menu */
-            if(estado_juego == MAPA_PREDETERMINADO){
-                SDL_RenderTexture(renderizador, texturaMapaPredet, NULL, NULL);
-            }else{
-                SDL_RenderTexture(renderizador, texturaMapaAleatorio, NULL, NULL);
-            }
-
-            for(int fila=0; fila<FILAS; fila++){
-                for(int columna=0; columna<COLUMNAS; columna++){
-                    if(plantas[fila][columna]!=NADA){
-                        SDL_FRect rectanguloplanta = {columna*TAM_CASILLA, fila*TAM_CASILLA, TAM_CASILLA, TAM_CASILLA};
-                        SDL_RenderTexture(renderizador, texturasPlantas[plantas[fila][columna]], NULL, &rectanguloplanta);
-                    }
+                // Dibujar Zombies (Cuadrado rojo)
+                else if(clase == ZOMBIE_NORMAL || clase == FLAG_ZOMBIE){
+                    SDL_SetRenderDrawColor(renderizador, 200, 0, 0, 255);
+                    SDL_RenderFillRect(renderizador, &rect);
+                    SDL_SetRenderDrawColor(renderizador, 0, 0, 0, 255);
+                    SDL_RenderRect(renderizador, &rect); // Borde negro
                 }
-            }
 
-            SDL_RenderFillRect(renderizador, &barraPlantas);
-            SDL_RenderTexture(renderizador, texturaSol, NULL, &posicionSOL);
-            SDL_RenderTexture(renderizador, texturaGirasol, NULL, &posicionGirasol);
-            SDL_RenderTexture(renderizador, texturaguisantes, NULL, &posicionLanzaguisantes);
-            SDL_RenderTexture(renderizador, texturaNuez, NULL, &posicionNuez);
-
-            if(plantaArrastrada!=NADA){
-                SDL_FRect rectanguloArrastrado = {mouseX - 30.f, mouseY - 30.f, 60.f, 60.f};
-                SDL_RenderTexture(renderizador, texturasPlantas[plantaArrastrada], NULL, &rectanguloArrastrado);
+                // Dibujar Proyectiles (Guisantes)
+                if(juego.proyectiles[i][j] == 1){
+                    // Círculo amarillo brillante con borde negro
+                    SDL_FRect rectGuisante = { (j * TAM_CASILLA) + (TAM_CASILLA/2) - 15, (i * TAM_CASILLA) + ALTO_BARRA + (TAM_CASILLA/2) - 15, 30, 30 };
+                    SDL_SetRenderDrawColor(renderizador, 255, 255, 0, 255); // Amarillo
+                    SDL_RenderFillRect(renderizador, &rectGuisante);
+                    SDL_SetRenderDrawColor(renderizador, 0, 0, 0, 255); // Borde
+                    SDL_RenderRect(renderizador, &rectGuisante);
+                }
             }
         }
+
+        // 7. Dibujar UI
+        SDL_SetRenderDrawColor(renderizador, 80, 80, 80, 255);
+        SDL_RenderFillRect(renderizador, &barraFondo);
+
+        // Fondos de botones
+        SDL_SetRenderDrawColor(renderizador, 120, 120, 120, 255);
+        SDL_RenderFillRect(renderizador, &btnGirasol);
+        SDL_RenderFillRect(renderizador, &btnLanza);
+        SDL_RenderFillRect(renderizador, &btnNuez);
+
+        // Texturas de botones
+        if (texturaGirasol) SDL_RenderTexture(renderizador, texturaGirasol, NULL, &btnGirasol);
+        if (texturaLanza) SDL_RenderTexture(renderizador, texturaLanza, NULL, &btnLanza);
+        if (texturaNuez) SDL_RenderTexture(renderizador, texturaNuez, NULL, &btnNuez);
+
+        // Perrito (Sol)
+        if (texturaSol) SDL_RenderTexture(renderizador, texturaSol, NULL, &rectSolUI);
+
+        // Barra de soles
+        SDL_SetRenderDrawColor(renderizador, 255, 215, 0, 255);
+        // Hacemos la barra más ancha para que se note la cantidad
+        SDL_FRect rectSoles = {380.f, 30.f, (float)(juego.soles * 2), 40.f}; 
+        SDL_RenderFillRect(renderizador, &rectSoles);
 
         SDL_RenderPresent(renderizador);
+        SDL_Delay(16); // ~60 FPS
     }
 
-    SDL_DestroyTexture(texturaInicio);
-    SDL_DestroyTexture(texturaMPP);
-    SDL_DestroyTexture(texturaMPA);
-    SDL_DestroyTexture(texturaMapaPredet);
-    SDL_DestroyTexture(texturaMapaAleatorio);
-    SDL_DestroyTexture(texturaPared);
-    SDL_DestroyTexture(texturaSol);
-    SDL_DestroyTexture(texturaGirasol);
-    SDL_DestroyTexture(texturaguisantes);
-    SDL_DestroyTexture(texturaNuez);
+    // 8. Liberar memoria
+    liberar_juego(&juego);
+    if(texturaFondo) SDL_DestroyTexture(texturaFondo);
+    if(texturaSol) SDL_DestroyTexture(texturaSol);
+    if(texturaGirasol) SDL_DestroyTexture(texturaGirasol);
+    if(texturaLanza) SDL_DestroyTexture(texturaLanza);
+    if(texturaNuez) SDL_DestroyTexture(texturaNuez);
     SDL_DestroyRenderer(renderizador);
     SDL_DestroyWindow(ventana);
     SDL_Quit();

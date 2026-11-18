@@ -380,3 +380,4 @@ void liberar_juego(EstadoJuego *juego) {
     juego->ultimo_evento = NULL;
     juego->ultimo_proyectil = NULL;
 }
+

@@ -51,6 +51,8 @@ typedef struct {
     time_t ultimo_solar;
 } EstadoJuego;
 
+// Crea una matriz dinamica inicializada en cero
+int **crear_matriz(int filas, int columnas);
 
 // Inicializa las matrices y los valores iniciales de la partida
 int inicializar_juego(EstadoJuego *juego, int **mapa, int filas, int columnas);

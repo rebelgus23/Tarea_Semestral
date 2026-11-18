@@ -74,9 +74,9 @@ void generar_mapa_aleatorio(int* FILAS, int* COLUMNAS){
     fprintf(archivo, "%d %d\n", *FILAS, *COLUMNAS); 
     for(int i = 0; i < *FILAS; i++){
         for(int j = 0; j < *COLUMNAS; j++){
-            if(i < (*FILAS/3)){
+            if(j < (*COLUMNAS/3)){
                 fprintf(archivo, "%d ", rand() % 4); 
-            } else if(i > (2*(*FILAS/3))){
+            } else if(j > (2*(*COLUMNAS/3))){
                 fprintf(archivo, "%d ", rand() % 6); 
             } else {
                 num = rand() % 6;

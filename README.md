@@ -3,7 +3,8 @@
 ## Compilación
 
 ### Versión Gráfica (SDL3)
-gcc tarea_semestral.c logica.c tarea1.c -o juego_grafico $(pkg-config --cflags --libs sdl3 sdl3-image)
+gcc tarea_semestral.c logica.c tarea1.c -o juego_grafico 
+(Hay que tener instalada las librerías SDL3/SDL.h, SDL3/SDL_main.h, y SDL3_image/SDL_image.h). 
 
 ### Versión Consola
 gcc main.c logica.c tarea1.c -o juego_consola

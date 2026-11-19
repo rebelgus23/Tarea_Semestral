@@ -16,6 +16,7 @@ void leer_config() {
     
     if (archivo == NULL){
         fprintf(stderr, "Error: No se pudo abrir configuracion.txt\n");
+        return;
     }
 
     fscanf(archivo, "oleadas: %d\n", &oleadas);

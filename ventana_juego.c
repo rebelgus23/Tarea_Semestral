@@ -123,8 +123,9 @@ int main(){
         }
 
         // Solo actualizamos si no hemos ganado/perdido
-        if (juego.vida_casa > 0 && contar_zombies_vivos(&juego) > 0) {
-            actualizar_juego(&juego, time(NULL));
+        // Actualiza logica del juego (soles, plantas, proyectiles, oleadas y zombies)
+        if (juego.juego_activo) {
+            actualizar_juego(&juego, time(NULL), SDL_GetTicks());
         }
 
         SDL_SetRenderDrawColor(renderizador, 30, 30, 30, 255);

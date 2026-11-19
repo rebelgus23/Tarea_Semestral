@@ -86,10 +86,10 @@ int main(void) {
     }
 
     // Coordenadas calibradas para matriz 5x9 sobre el pasto
-    int offsetX = 212;
-    int offsetY = 176;
-    int anchoCelda = 56;
-    int altoCelda = 70;
+    int offsetX = 195;       
+    int offsetY = 190;       
+    int anchoCelda = 70;     
+    int altoCelda = 75;   
 
     int ancho_base = 900;
     int alto_base = 600;

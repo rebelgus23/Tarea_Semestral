@@ -110,7 +110,7 @@ int main(){
             }
         }
 
-        actualizar_juego(&juego, time(NULL));
+        actualizar_juego(&juego, time(NULL), (uint64_t)time(NULL) * 1000ULL);
 
         // Para que no sea todo seguido
         printf("Presiona Enter para el siguiente turno\n");

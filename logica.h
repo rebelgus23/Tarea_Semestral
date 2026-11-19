@@ -1,15 +1,15 @@
-
 #ifndef LOGICA_H
 #define LOGICA_H
 
 #include <time.h>
+#include <stdint.h>
 
-// Tipos de entidades
+// Tipos generales de ocupacion en cada casilla
 #define VACIO 0
 #define PLANTA 1
 #define ZOMBIE_ENTIDAD 2
 
-// Clases de entidades
+// Clases especificas de entidades en el mapa y tablero
 #define PASTO 0
 #define GIRASOL 1
 #define LANZAGUISANTES 2
@@ -17,7 +17,7 @@
 #define ZOMBIE_NORMAL 4
 #define FLAG_ZOMBIE 5
 
-// Costos y valores iniciales
+// Costos en soles y valores base
 #define COSTO_GIRASOL 50
 #define COSTO_LANZAGUISANTES 100
 #define COSTO_NUEZ 150
@@ -25,100 +25,78 @@
 #define VIDA_NUEZ 5
 #define SOLES_GENERADOS 25
 
-// Frecuencia de movimiento y ataque de los zombies
-#define FRECUENCIA_ZOMBIE_NORMAL 2
-#define FRECUENCIA_FLAG_ZOMBIE 1
-#define FRECUENCIA_ATAQUE_ZOMBIE 1
-#define DANO_ZOMBIE 1
+// Tiempos de dinamicas (en segundos y milisegundos)
+#define INTERVALO_SPAWN_ZOMBIE 5
+#define TIEMPO_DESCANSO_OLEADA 5
+#define ZOMBIES_BASE_OLEADA 3
+#define ZOMBIES_EXTRA_OLEADA 2
+#define COOLDOWN_ZOMBIE 3
+#define COOLDOWN_PROYECTIL_MS 250ULL // 250 ms por casilla para que el guisante avance fluido
+#define DANO_PLANTA_NORMAL 1
+#define DANO_NUEZ 2
+#define DANO_CASA 1
 
-// Configuracion de las oleadas
-#define TIEMPO_PREPARACION 10
-#define TIEMPO_DESCANSO 5
-#define INTERVALO_APARICION 2
-#define ZOMBIES_INICIALES 2
-#define ZOMBIES_ADICIONALES 1
-
-// Estados de las oleadas
-#define PREPARACION 0
-#define OLEADA 1
-#define DESCANSO 2
-#define PARTIDA_TERMINADA 3
-
-// Estructura que almacena el estado actual de la partida
+// Estado completo de la partida activa
 typedef struct {
-    int filas;
-    int columnas;
+    int filas;                    // Filas del jardin
+    int columnas;                 // Columnas del jardin
 
-    int **tipo_entidad;
-    int **clase_entidad;
-    int **vida;
-    int **proyectiles;
+    int **tipo_entidad;           // VACIO, PLANTA o ZOMBIE_ENTIDAD
+    int **clase_entidad;          // PASTO, GIRASOL, LANZAGUISANTES, NUEZ, ZOMBIE_NORMAL, FLAG_ZOMBIE
+    int **vida;                   // Vida actual de la entidad en (i, j)
+    int **proyectiles;            // 1 si hay proyectil activo en (i, j), 0 si no
 
-    time_t **ultimo_evento;
-    time_t **ultimo_proyectil;
+    time_t **ultimo_evento;       // Ultimo disparo o produccion de sol en (i, j)
+    uint64_t **ultimo_proyectil;  // Marca en milisegundos del ultimo avance del proyectil en (i, j)
+    time_t **ultimo_mov_zombie;   // Ultimo movimiento o mordida del zombie en (i, j)
+    time_t ultimo_spawn;          // Ultimo intento de aparicion de zombie
+    time_t fin_descanso;          // Marca de tiempo al iniciar descanso entre oleadas
 
-    int soles;
-    int vida_casa;
-    int oleada_actual;
+    int soles;                    // Soles disponibles
+    int vida_casa;                // Vida restante de la casa
+    int oleada_actual;            // Oleada actual (1..max_oleadas)
+    int max_oleadas;              // Total de oleadas a sobrevivir para ganar
+    int zombies_generados_oleada; // Zombies ya generados en la oleada actual
+    int zombies_objetivo_oleada;  // Total de zombies a generar en la oleada actual
+    int en_descanso;              // 1 si esta en descanso entre oleadas, 0 si no
 
-    int frecuencia_disparo;
-    int frecuencia_soles;
+    int frecuencia_disparo;       // Segundos entre disparos de lanzaguisantes
+    int frecuencia_soles;         // Segundos entre generaciones de soles
 
-    int juego_activo;
-    int victoria;
+    int juego_activo;             // 1 mientras sigue la partida, 0 si termino
+    int victoria;                 // 1 si sobrevivio todas las oleadas, 0 si perdio o sigue
 
-    time_t ultimo_solar;
-
-    // Variables para controlar las oleadas
-    int estado_oleada;
-    int zombies_por_generar;
-    int zombies_generados;
-
-    time_t inicio_partida;
-    time_t ultimo_spawn;
-    time_t inicio_descanso;
-
+    time_t ultimo_solar;          // Ultima generacion periodica de soles del jardin
 } EstadoJuego;
 
+// Manejo de matrices dinamicas
+int **crear_matriz(int filas, int columnas);
+time_t **crear_matriz_tiempo(int filas, int columnas);
+uint64_t **crear_matriz_ms(int filas, int columnas);
+void liberar_matriz(int **matriz, int filas);
+void liberar_matriz_tiempo(time_t **matriz, int filas);
+void liberar_matriz_ms(uint64_t **matriz, int filas);
 
-// Inicializa las matrices y los valores iniciales de la partida
+// Ciclo principal de la partida
 int inicializar_juego(EstadoJuego *juego, int **mapa, int filas, int columnas);
-
-// Ejecuta las actualizaciones correspondientes al estado del juego
-void actualizar_juego(EstadoJuego *juego, time_t tiempo_actual);
-
-// Comprueba si se puede colocar una planta y descuenta su costo
+void actualizar_juego(EstadoJuego *juego, time_t tiempo_actual, uint64_t tiempo_ms);
 int colocar_planta(EstadoJuego *juego, int tipo, int fila, int columna);
 
-// Genera soles de forma periodica
+// Subsistemas del juego
 void generar_soles(EstadoJuego *juego, time_t tiempo_actual);
-
-// Controla la generacion de soles de los girasoles
 void actualizar_girasoles(EstadoJuego *juego, time_t tiempo_actual);
-
-// Comprueba si los lanzaguisantes pueden disparar
-void actualizar_lanzaguisantes(EstadoJuego *juego, time_t tiempo_actual);
-
-// Avanza los proyectiles y comprueba si impactan contra un zombie
-void mover_proyectiles(EstadoJuego *juego, time_t tiempo_actual);
-
-// Controla el movimiento y los ataques de los zombies
-void actualizar_zombies(EstadoJuego *juego, time_t tiempo_actual);
-
-// Controla la aparicion y el avance de las oleadas
-void actualizar_oleadas(EstadoJuego *juego, time_t tiempo_actual);
-
-// Genera un zombie en el extremo derecho del mapa
-int generar_zombie(EstadoJuego *juego, time_t tiempo_actual);
-
-// Comprueba si quedan zombies en el jardin
-int quedan_zombies(EstadoJuego *juego);
-
-// Comprueba si se cumplen las condiciones para terminar la partida
+void actualizar_lanzaguisantes(EstadoJuego *juego, time_t tiempo_actual, uint64_t tiempo_ms);
+void mover_proyectiles(EstadoJuego *juego, uint64_t tiempo_ms);
+void generar_oleada(EstadoJuego *juego, time_t tiempo_actual);
+void mover_zombies(EstadoJuego *juego, time_t tiempo_actual);
+int quedan_zombies_en_mapa(const EstadoJuego *juego);
 void comprobar_fin_juego(EstadoJuego *juego);
 
-// Libera la memoria utilizada por el estado del juego
+// Paquete 1: guardar y cargar partida desde archivo
+int guardar_partida(const EstadoJuego *juego, const char *ruta_archivo);
+int cargar_partida(EstadoJuego *juego, const char *ruta_archivo);
+
+// Liberacion de memoria
 void liberar_juego(EstadoJuego *juego);
 
 #endif
-

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "tarea1.h" 
+#include "logica.h"
 
 // Variables de configuracion
 int oleadas;
@@ -38,12 +39,7 @@ int** cargar_mapa(char* nombre, int* filas, int* columnas){
     fscanf(archivo," %d %d\n", filas, columnas);
 
     // Mapa del jardin
-    int **mapa = malloc((*filas) * sizeof(int*));
-
-    // reservar memoria para las columnas de cada fila
-    for(int i = 0; i < (*filas); i++){
-        mapa[i] = malloc((*columnas) * sizeof(int));
-    }
+    int **mapa = crear_matriz(*filas, *columnas);
 
     // for para leer el txt
     for(int i = 0; i < (*filas); i++){
@@ -66,10 +62,29 @@ void generar_mapa_aleatorio(int* FILAS, int* COLUMNAS){
         fprintf(stderr, "Error: No se pudo crear mapa_aleatorio.txt\n");
     }
 
+    // 0 = espacio vacio
+    // 1 = sol
+    // 2 = Lanza gusantes
+    // 3 = Nuez
+    // 4 = zombie normal
+    // 5 = zombie rapido
+
+    int num;
+
     fprintf(archivo, "%d %d\n", *FILAS, *COLUMNAS); 
     for(int i = 0; i < *FILAS; i++){
         for(int j = 0; j < *COLUMNAS; j++){
-            fprintf(archivo, "%d ", rand() % 4); 
+            if(j < (*COLUMNAS/3)){
+                fprintf(archivo, "%d ", rand() % 4); 
+            } else if(j > (2*(*COLUMNAS/3))){
+                fprintf(archivo, "%d ", rand() % 6); 
+            } else {
+                num = rand() % 6;
+                if((num != 0) && (num < 4)){
+                    num = 4 + rand() % 2;
+                }
+                fprintf(archivo, "%d ", num); 
+            }
         }
         fprintf(archivo, "\n"); 
     }

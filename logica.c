@@ -312,6 +312,18 @@ int colocar_planta(EstadoJuego *juego, int tipo, int fila, int columna) {
     return 1;
 }
 
+// Elimina una planta de la casilla indicada si existe
+void eliminar_planta(EstadoJuego *juego, int fila, int columna) {
+    if (juego == NULL || fila < 0 || fila >= juego->filas || columna < 0 || columna >= juego->columnas) {
+        return;
+    }
+    if (juego->tipo_entidad[fila][columna] == PLANTA) {
+        juego->tipo_entidad[fila][columna] = VACIO;
+        juego->clase_entidad[fila][columna] = PASTO;
+        juego->vida[fila][columna] = 0;
+    }
+}
+
 // Suma soles periodicos del jardin
 void generar_soles(EstadoJuego *juego, time_t tiempo_actual) {
     if (juego == NULL || juego->frecuencia_soles <= 0) {
@@ -373,7 +385,6 @@ void actualizar_lanzaguisantes(EstadoJuego *juego, time_t tiempo_actual, uint64_
                 continue;
             }
 
-            // Si el zombie esta justo enfrente, impacta inmediatamente
             if (juego->tipo_entidad[i][siguiente] == ZOMBIE_ENTIDAD) {
                 juego->vida[i][siguiente]--;
                 if (juego->vida[i][siguiente] <= 0) {
@@ -383,7 +394,6 @@ void actualizar_lanzaguisantes(EstadoJuego *juego, time_t tiempo_actual, uint64_
                 }
                 juego->ultimo_evento[i][j] = tiempo_actual;
             } else if (juego->proyectiles[i][siguiente] == 0) {
-                // Puede aparecer aunque en 'siguiente' haya otra planta (girasol, nuez u otro lanzaguisantes)
                 juego->proyectiles[i][siguiente] = 1;
                 juego->ultimo_proyectil[i][siguiente] = tiempo_ms;
                 juego->ultimo_evento[i][j] = tiempo_actual;
@@ -424,7 +434,6 @@ void mover_proyectiles(EstadoJuego *juego, uint64_t tiempo_ms) {
                     juego->vida[i][siguiente] = 0;
                 }
             } else {
-                // Avanza tanto sobre VACIO como sobre PLANTA (las plantas dejan pasar guisantes)
                 juego->proyectiles[i][siguiente] = 1;
                 juego->ultimo_proyectil[i][siguiente] = tiempo_ms;
             }

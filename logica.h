@@ -81,6 +81,7 @@ void liberar_matriz_ms(uint64_t **matriz, int filas);
 int inicializar_juego(EstadoJuego *juego, int **mapa, int filas, int columnas);
 void actualizar_juego(EstadoJuego *juego, time_t tiempo_actual, uint64_t tiempo_ms);
 int colocar_planta(EstadoJuego *juego, int tipo, int fila, int columna);
+void eliminar_planta(EstadoJuego *juego, int fila, int columna);
 
 // Subsistemas del juego
 void generar_soles(EstadoJuego *juego, time_t tiempo_actual);

@@ -10,12 +10,12 @@
 #include "tarea1.h"
 
 #define ALTO_BARRA 100                                    // Altura de la barra superior de HUD y herramientas
-#define FPS_OBJETIVO 120                                  // Tasa de refresco objetivo para el bucle grafico
+#define FPS_OBJETIVO 120                                  // Tasa de refresco objetivo para el bucle gráfico
 #define TIEMPO_CUADRO_MS (1000.0 / (double)FPS_OBJETIVO)  // Duracion ideal de cada cuadro en milisegundos
 #define ARCHIVO_GUARDADO "partida_guardada.txt"           // Nombre del archivo para guardar y cargar partidas
 #define HERRAMIENTA_PALA 99                               // Identificador de la herramienta pala para quitar plantas
 
-// Estados posibles de la interfaz grafica
+// Estados posibles de la interfaz gráfica
 typedef enum {
     PANTALLA_INICIO,
     PANTALLA_JUEGO
@@ -54,7 +54,7 @@ static void limitar_fps(Uint64 inicio_cuadro_ns) {
 int main(void) {
     srand((unsigned int)time(NULL)); // Inicializa semilla aleatoria para oleadas y mapas
 
-    // Carga el mapa predeterminado desde archivo y lee los parametros de configuracion
+    // Carga el mapa predeterminado desde archivo y lee los parámetros de configuración
     int filas_pred = 0;
     int columnas_pred = 0;
     int **mapa_pred = cargar_mapa("mapa.txt", &filas_pred, &columnas_pred);
@@ -80,19 +80,19 @@ int main(void) {
     Pantalla pantalla = PANTALLA_INICIO;
     bool partida_iniciada = false;
 
-    // Botones de la pantalla de inicio y boton para volver al menu
+    // Botones de la pantalla de inicio y botón para volver al menú
     SDL_FRect btnMapaPred = {300.f, 190.f, 300.f, 75.f};
     SDL_FRect btnMapaRand = {300.f, 285.f, 300.f, 75.f};
     SDL_FRect btnVolver = {25.f, 485.f, 120.f, 75.f};
 
-    // Inicia SDL3 y crea ventana y renderizador con escalado logico 900x600
+    // Inicia SDL3 y crea ventana y renderizador con escalado lógico 900x600
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("Error al iniciar SDL: %s", SDL_GetError());
         liberar_mapa(mapa_pred, filas_pred);
         return 1;
     }
 
-    // Coordenadas calibradas sobre el lienzo logico 900x600 para evitar desfase hacia la derecha
+    // Coordenadas calibradas sobre el lienzo lógico 900x600 para evitar desfase hacia la derecha
     int offsetX = 195;
     int offsetY = 180;
     int anchoCelda = 60;
@@ -113,7 +113,7 @@ int main(void) {
 
     SDL_SetRenderLogicalPresentation(renderizador, ancho_base, alto_base, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
-    // Carga de recursos graficos (con respaldo si falta alguna textura)
+    // Carga de recursos gráficos (con respaldo si falta alguna textura)
     SDL_Texture *texturaInicio = cargarTextura(renderizador, "inicio.png");
     SDL_Texture *texturaMPP = cargarTextura(renderizador, "boton_mpp.png");
     SDL_Texture *texturaboton_volver = cargarTextura(renderizador, "boton_volver.jpeg");
@@ -136,7 +136,7 @@ int main(void) {
         texturaNuez = texturaSol;
     }
 
-    // Rectangulos de la barra superior y seleccion de plantas / herramientas
+    // Rectángulos de la barra superior y selección de plantas / herramientas
     SDL_FRect barraFondo = {0.f, 0.f, (float)ancho_base, (float)ALTO_BARRA};
     SDL_FRect btnGirasol = {10.f, 10.f, 75.f, 80.f};
     SDL_FRect btnLanza = {95.f, 10.f, 75.f, 80.f};
@@ -224,7 +224,7 @@ int main(void) {
                         }
                     }
                 } else {
-                    // Seleccion de botones en pantalla de juego
+                    // Selección de botones en pantalla de juego
                     if (evento.type == SDL_EVENT_MOUSE_BUTTON_DOWN && evento.button.button == SDL_BUTTON_LEFT) {
                         if (SDL_PointInRectFloat(&pt, &btnVolver)) {
                             if (partida_iniciada) {
@@ -244,7 +244,7 @@ int main(void) {
                         }
                     }
 
-                    // Colocar o eliminar planta al soltar el clic sobre una celda valida
+                    // Colocar o eliminar planta al soltar el clic sobre una celda válida
                     if (evento.type == SDL_EVENT_MOUSE_BUTTON_UP && evento.button.button == SDL_BUTTON_LEFT) {
                         if (herramientaSeleccionada != 0 && mouseY > ALTO_BARRA && juego.juego_activo) {
                             int columna = (int)((mouseX - (float)offsetX) / (float)anchoCelda);
@@ -298,13 +298,13 @@ int main(void) {
             continue;
         }
 
-        // Avanza la simulacion del juego usando tiempo en segundos y milisegundos
+        // Avanza la simulación del juego usando tiempo en segundos y milisegundos
         actualizar_juego(&juego, time(NULL), SDL_GetTicks());
 
         SDL_SetRenderDrawColor(renderizador, 30, 30, 30, 255);
         SDL_RenderClear(renderizador);
 
-        // Fondo del jardin debajo de la barra superior
+        // Fondo del jardín debajo de la barra superior
         if (texturaFondo != NULL) {
             SDL_FRect rectFondo = {0.f, (float)ALTO_BARRA, (float)ancho_base, (float)(alto_base - ALTO_BARRA)};
             SDL_RenderTexture(renderizador, texturaFondo, NULL, &rectFondo);
@@ -360,7 +360,7 @@ int main(void) {
             }
         }
 
-        // Boton volver a inicio
+        // Botón volver a inicio
         if (texturaboton_volver) {
             SDL_RenderTexture(renderizador, texturaboton_volver, NULL, &btnVolver);
         } else {
